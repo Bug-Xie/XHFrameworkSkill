@@ -2,6 +2,8 @@
 
 ## 🎯 <span style="color: red; font-size: 22px; font-weight: bold;">QQ交流群：621790749</span>
 
+## 🎯 <span style="color: red; font-size: 26px; font-weight: bold;">Unity版本：2022.3.62f2c1  示例场景在SampleScene里面  分辨率1366*768 wasd控制主角，一个技能一个技能去演示</span>
+
 # XHFrameworkSkill - Unity GAS技能框架与技能节点编辑器  
 ![alt text](./images/image36.png)  
 ### 编辑器概览    
