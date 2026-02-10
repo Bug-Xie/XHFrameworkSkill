@@ -4,6 +4,10 @@
 
 # XHFrameworkSkill - Unity技能框架与编辑器
 
+### 编辑器概览  
+![alt text](./images/image-2.png)  
+![alt text](./images/image-2.png)
+
 ## 📖 目录
 [项目简介](#项目简介) | [为什么做这个技能模块](#为什么做这个技能模块) | [框架概述](#框架概述) | [技能编辑器详解](#技能编辑器详解) | [标签编辑器](#标签编辑器) | [技能示例分析](#技能示例分析) | [数值系统](#数值系统) | [仓库内容](#仓库内容) | [交流学习](#交流学习)
 
@@ -70,9 +74,6 @@
 ---
 
 ## 🎨 <span style="color: red; font-size: 18px; font-weight: bold;">技能编辑器详解</span>
-
-### 编辑器概览
-![alt text](./images/image-2.png)
 
 ### 1. 技能资源栏
 ![alt text](./images/image-3.png)
