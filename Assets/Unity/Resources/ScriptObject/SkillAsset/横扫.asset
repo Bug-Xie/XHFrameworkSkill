@@ -20,8 +20,8 @@ MonoBehaviour:
   - rid: 4684207772497084419
   - rid: 4684207772497084423
   - rid: 4684207772497084417
-  - rid: 4684207772497084421
   - rid: 4684207772497084418
+  - rid: 4684207772497084421
   connections:
   - outputNodeGuid: 432ff1e3-b18d-476d-af80-d39ddc07402a
     outputPortName: 8dea1941-c520-4f9a-aee0-40932c8542ef
@@ -240,9 +240,9 @@ MonoBehaviour:
         maxTargets: 999
         searchTargetTags:
           _tags:
-          - _name: unitType.boss
-            _hashCode: -2067207703
-            _shortName: boss
+          - _name: unitType.monster
+            _hashCode: -2021655864
+            _shortName: monster
             _ancestorHashCodes: 6c74655f
             _ancestorNames:
             - unitType

@@ -60,7 +60,7 @@ MonoBehaviour:
         nodeType: 0
         position: {x: -878.4, y: -1853.6}
         targetType: 1
-        skillId: 1006
+        skillId: 1005
         assetTags:
           _tags: []
         cancelAbilitiesWithTags:
@@ -235,9 +235,9 @@ MonoBehaviour:
         maxTargets: 999
         searchTargetTags:
           _tags:
-          - _name: unitType.boss
-            _hashCode: -2067207703
-            _shortName: boss
+          - _name: unitType.monster
+            _hashCode: -2021655864
+            _shortName: monster
             _ancestorHashCodes: 6c74655f
             _ancestorNames:
             - unitType

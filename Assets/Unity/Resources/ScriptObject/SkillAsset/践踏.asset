@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: "\u8DF5\u8E0F"
   m_EditorClassIdentifier: 
   nodes:
-  - rid: 4684207772497084421
   - rid: 4684207772497084419
   - rid: 4684207772497084420
   - rid: 4684207772497084416
   - rid: 4684207772497084418
   - rid: 4684207772497084417
   - rid: 4684207772497084431
-  - rid: 4684207772497084424
   - rid: 4684207772497084428
+  - rid: 4684207772497084424
+  - rid: 4684207772497084421
   connections:
   - outputNodeGuid: 356907e0-1488-4128-bfcc-7ff73cfc3330
     outputPortName: "\u52A8\u753B"
@@ -240,9 +240,9 @@ MonoBehaviour:
         maxTargets: 999
         searchTargetTags:
           _tags:
-          - _name: unitType.boss
-            _hashCode: -2067207703
-            _shortName: boss
+          - _name: unitType.monster
+            _hashCode: -2021655864
+            _shortName: monster
             _ancestorHashCodes: 6c74655f
             _ancestorNames:
             - unitType
