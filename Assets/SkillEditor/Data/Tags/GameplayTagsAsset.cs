@@ -129,30 +129,74 @@ namespace SkillEditor.Data
         /// </summary>
         public bool RemoveNode(int nodeId)
         {
-            if (nodeId == 0) return false; // 不能删除根节点
+            return RemoveNode(nodeId, out _);
+        }
+
+        /// <summary>
+        /// 删除标签节点，并输出被删除的所有标签路径
+        /// </summary>
+        public bool RemoveNode(int nodeId, out List<string> removedPaths)
+        {
+            removedPaths = null;
+            if (nodeId == 0) return false;
 
             var node = GetNodeById(nodeId);
             if (node == null) return false;
 
-            // 递归删除所有子节点
+            // 删除前收集所有受影响的路径
+            var affectedNodeIds = new List<int>();
+            CollectDescendantIds(nodeId, affectedNodeIds);
+
+            removedPaths = new List<string>();
+            foreach (var id in affectedNodeIds)
+            {
+                var path = GetFullTagPath(id);
+                if (!string.IsNullOrEmpty(path))
+                    removedPaths.Add(path);
+            }
+
+            // 执行删除
+            RemoveNodeInternal(nodeId);
+            RebuildCache();
+            return true;
+        }
+
+        /// <summary>
+        /// 内部递归删除（不触发 RebuildCache）
+        /// </summary>
+        private void RemoveNodeInternal(int nodeId)
+        {
+            var node = GetNodeById(nodeId);
+            if (node == null) return;
+
             var childrenToRemove = new List<int>(node.childrenIds);
             foreach (var childId in childrenToRemove)
             {
-                RemoveNode(childId);
+                RemoveNodeInternal(childId);
             }
 
-            // 从父节点中移除引用
             var parent = GetNodeById(node.parentId);
             if (parent != null)
             {
                 parent.childrenIds.Remove(nodeId);
             }
 
-            // 从列表中移除
             _treeNodes.Remove(node);
+        }
 
-            RebuildCache();
-            return true;
+        /// <summary>
+        /// 收集节点自身及所有子孙节点的ID
+        /// </summary>
+        private void CollectDescendantIds(int nodeId, List<int> result)
+        {
+            result.Add(nodeId);
+            var node = GetNodeById(nodeId);
+            if (node == null) return;
+
+            foreach (var childId in node.childrenIds)
+            {
+                CollectDescendantIds(childId, result);
+            }
         }
 
         /// <summary>
@@ -160,7 +204,16 @@ namespace SkillEditor.Data
         /// </summary>
         public bool RenameNode(int nodeId, string newName)
         {
-            if (nodeId == 0) return false; // 不能重命名根节点
+            return RenameNode(nodeId, newName, out _);
+        }
+
+        /// <summary>
+        /// 重命名节点，并输出受影响的标签路径映射（旧路径 -> 新路径）
+        /// </summary>
+        public bool RenameNode(int nodeId, string newName, out Dictionary<string, string> renamedPaths)
+        {
+            renamedPaths = null;
+            if (nodeId == 0) return false;
 
             var node = GetNodeById(nodeId);
             if (node == null) return false;
@@ -181,8 +234,32 @@ namespace SkillEditor.Data
                 }
             }
 
+            // 收集重命名前所有受影响节点的旧路径
+            var affectedNodeIds = new List<int>();
+            CollectDescendantIds(nodeId, affectedNodeIds);
+
+            var oldPaths = new Dictionary<int, string>();
+            foreach (var id in affectedNodeIds)
+            {
+                oldPaths[id] = GetFullTagPath(id);
+            }
+
+            // 执行重命名
             node.name = newName;
             RebuildCache();
+
+            // 构建旧路径 -> 新路径映射
+            renamedPaths = new Dictionary<string, string>();
+            foreach (var id in affectedNodeIds)
+            {
+                var oldPath = oldPaths[id];
+                var newPath = GetFullTagPath(id);
+                if (oldPath != newPath)
+                {
+                    renamedPaths[oldPath] = newPath;
+                }
+            }
+
             return true;
         }
 

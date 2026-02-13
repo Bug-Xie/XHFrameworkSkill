@@ -17,8 +17,8 @@ namespace SkillEditor.Runtime
         [SerializeField] private AbilitySystemComponent _asc;
          private SkeletonAnimation _animation;
 
-        // 缓存的标签
-        private string _cachedStunTag="Buff.DeBuff.Stun";
+        // 缓存的标签（通过 GameplayTagLibrary 引用，tag 重命名/删除时编译期即可发现）
+        private GameplayTag _cachedStunTag = GameplayTagLibrary.Buff_DeBuff_Stun;
 
         // 当前状态
         [HideInInspector]

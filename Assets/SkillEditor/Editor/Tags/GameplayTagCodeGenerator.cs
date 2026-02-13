@@ -16,6 +16,49 @@ namespace SkillEditor.Editor
         private const string DEFAULT_NAMESPACE = "SkillEditor.Data";
         private const string DEFAULT_CLASS_NAME = "GameplayTagLibrary";
 
+        private const string LIBRARY_FILE_NAME = "GameplayTagLibrary.cs";
+
+        /// <summary>
+        /// 静默自动生成 - 自动查找已有的 GameplayTagLibrary.cs 路径，无需用户交互
+        /// 用于 Tag 重命名/删除后自动重新生成
+        /// </summary>
+        /// <returns>是否成功生成</returns>
+        public static bool AutoGenerate(GameplayTagsAsset asset)
+        {
+            if (asset == null || asset.CachedTags.Count == 0) return false;
+
+            // 查找已有的 GameplayTagLibrary.cs
+            var existingPath = FindExistingLibraryPath();
+            if (string.IsNullOrEmpty(existingPath))
+            {
+                // 没有找到已有文件，放到 Tag 资源同目录下
+                var assetPath = AssetDatabase.GetAssetPath(asset);
+                var dir = Path.GetDirectoryName(assetPath);
+                existingPath = Path.Combine(dir, LIBRARY_FILE_NAME);
+            }
+
+            var fullPath = Path.GetFullPath(existingPath);
+            GenerateCode(asset, fullPath, DEFAULT_NAMESPACE, DEFAULT_CLASS_NAME);
+            AssetDatabase.ImportAsset(existingPath);
+            Debug.Log($"[TagCodeGen] GameplayTagLibrary 已自动更新: {existingPath}");
+            return true;
+        }
+
+        /// <summary>
+        /// 查找项目中已有的 GameplayTagLibrary.cs 文件路径
+        /// </summary>
+        private static string FindExistingLibraryPath()
+        {
+            var guids = AssetDatabase.FindAssets("GameplayTagLibrary t:MonoScript");
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (Path.GetFileName(path) == LIBRARY_FILE_NAME)
+                    return path;
+            }
+            return null;
+        }
+
         /// <summary>
         /// 从编辑器窗口调用的生成方法
         /// </summary>

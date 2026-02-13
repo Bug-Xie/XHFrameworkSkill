@@ -504,10 +504,22 @@ namespace SkillEditor.Editor
             {
                 if (!string.IsNullOrEmpty(newName) && newName != node.name)
                 {
-                    if (_asset.RenameNode(nodeId, newName))
+                    if (_asset.RenameNode(nodeId, newName, out var renamedPaths))
                     {
                         EditorUtility.SetDirty(_asset);
                         AssetDatabase.SaveAssets();
+
+                        // 方案一：自动更新所有技能资产中的 tag 引用
+                        if (renamedPaths != null && renamedPaths.Count > 0)
+                        {
+                            int count = GameplayTagRefactorTool.ApplyRename(renamedPaths);
+                            if (count > 0)
+                                Debug.Log($"[标签编辑器] 已自动更新 {count} 个技能资产的 Tag 引用");
+                        }
+
+                        // 方案三：自动重新生成 GameplayTagLibrary
+                        GameplayTagCodeGenerator.AutoGenerate(_asset);
+
                         RefreshTree();
                     }
                 }
@@ -522,15 +534,65 @@ namespace SkillEditor.Editor
 
             var fullPath = _asset.GetFullTagPath(nodeId);
             var hasChildren = node.childrenIds.Count > 0;
+
+            // 先收集将要删除的 tag 路径（删除前）
+            var affectedIds = new System.Collections.Generic.List<int>();
+            CollectDescendantIdsForDelete(nodeId, affectedIds);
+            var removedPaths = new System.Collections.Generic.List<string>();
+            foreach (var id in affectedIds)
+            {
+                var path = _asset.GetFullTagPath(id);
+                if (!string.IsNullOrEmpty(path))
+                    removedPaths.Add(path);
+            }
+
+            // 扫描引用
+            var references = GameplayTagRefactorTool.FindReferences(removedPaths);
+
+            // 构建确认消息
             var message = hasChildren
                 ? $"确定要删除标签 \"{fullPath}\" 及其所有子标签吗？"
                 : $"确定要删除标签 \"{fullPath}\" 吗？";
 
+            if (references.Count > 0)
+            {
+                // 按资产分组显示引用
+                var assetNames = new System.Collections.Generic.HashSet<string>();
+                foreach (var r in references)
+                    assetNames.Add(r.assetName);
+
+                message += $"\n\n⚠ 以下 {assetNames.Count} 个技能资产仍在引用此标签:\n";
+                int shown = 0;
+                foreach (var name in assetNames)
+                {
+                    if (shown >= 10)
+                    {
+                        message += $"  ...等共 {assetNames.Count} 个\n";
+                        break;
+                    }
+                    message += $"  • {name}\n";
+                    shown++;
+                }
+                message += "\n删除后将自动从这些资产中移除对应的 Tag 引用。";
+            }
+
             if (EditorUtility.DisplayDialog("删除标签", message, "删除", "取消"))
             {
+                // 先从技能资产中移除引用
+                if (references.Count > 0)
+                {
+                    int count = GameplayTagRefactorTool.ApplyRemove(removedPaths);
+                    if (count > 0)
+                        Debug.Log($"[标签编辑器] 已自动清理 {count} 个技能资产的 Tag 引用");
+                }
+
+                // 再删除 tag 定义
                 _asset.RemoveNode(nodeId);
                 EditorUtility.SetDirty(_asset);
                 AssetDatabase.SaveAssets();
+
+                // 自动重新生成 GameplayTagLibrary
+                GameplayTagCodeGenerator.AutoGenerate(_asset);
 
                 if (_selectedNodeId == nodeId)
                     _selectedNodeId = -1;
@@ -539,6 +601,18 @@ namespace SkillEditor.Editor
 
                 RefreshTree();
             }
+        }
+
+        /// <summary>
+        /// 收集节点及其所有子孙ID（用于删除前的引用扫描）
+        /// </summary>
+        private void CollectDescendantIdsForDelete(int nodeId, System.Collections.Generic.List<int> result)
+        {
+            result.Add(nodeId);
+            var node = _asset.GetNodeById(nodeId);
+            if (node == null) return;
+            foreach (var childId in node.childrenIds)
+                CollectDescendantIdsForDelete(childId, result);
         }
 
         private void CopyTag(int nodeId)

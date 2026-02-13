@@ -65,11 +65,6 @@ namespace SkillEditor.Data
         public static GameplayTag CD_旋风斩 { get; } = new GameplayTag("CD.旋风斩");
 
         /// <summary>
-        /// CD.横扫
-        /// </summary>
-        public static GameplayTag CD_横扫 { get; } = new GameplayTag("CD.横扫");
-
-        /// <summary>
         /// CD.流血
         /// </summary>
         public static GameplayTag CD_流血 { get; } = new GameplayTag("CD.流血");
@@ -100,14 +95,14 @@ namespace SkillEditor.Data
         public static GameplayTag unitType { get; } = new GameplayTag("unitType");
 
         /// <summary>
-        /// unitType.boss
-        /// </summary>
-        public static GameplayTag unitType_boss { get; } = new GameplayTag("unitType.boss");
-
-        /// <summary>
         /// unitType.hero
         /// </summary>
         public static GameplayTag unitType_hero { get; } = new GameplayTag("unitType.hero");
+
+        /// <summary>
+        /// unitType.monster
+        /// </summary>
+        public static GameplayTag unitType_monster { get; } = new GameplayTag("unitType.monster");
 
         #endregion
 
@@ -128,15 +123,14 @@ namespace SkillEditor.Data
             ["CD.回血"] = CD_回血,
             ["CD.急速"] = CD_急速,
             ["CD.旋风斩"] = CD_旋风斩,
-            ["CD.横扫"] = CD_横扫,
             ["CD.流血"] = CD_流血,
             ["CD.火球术"] = CD_火球术,
             ["CD.神罗天正"] = CD_神罗天正,
             ["CD.被动回血"] = CD_被动回血,
             ["CD.践踏"] = CD_践踏,
             ["unitType"] = unitType,
-            ["unitType.boss"] = unitType_boss,
             ["unitType.hero"] = unitType_hero,
+            ["unitType.monster"] = unitType_monster,
         };
 
         #endregion
