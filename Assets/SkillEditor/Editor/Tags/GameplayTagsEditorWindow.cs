@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.UIElements;
-using UnityEditor.UIElements;
 using System.Collections.Generic;
 using SkillEditor.Data;
 
@@ -13,20 +12,30 @@ namespace SkillEditor.Editor
     /// </summary>
     public class GameplayTagsEditorWindow : EditorWindow
     {
+        private const string ASSET_PATH = "Assets/Unity/Resources/ScriptObject/TagAsset/GameplayTagsAsset.asset";
+
         private GameplayTagsAsset _asset;
         private VisualElement _treeContainer;
         private TextField _searchField;
         private Label _statusLabel;
         private ScrollView _scrollView;
+        private Button _applyButton;
 
         private int _selectedNodeId = -1;
         private HashSet<int> _expandedNodes = new HashSet<int>();
         private string _searchText = "";
         private bool _clickHandledByItem = false;
+        private bool _isDirty = false;
 
         // 剪贴板数据
         private int _clipboardNodeId = -1;
         private bool _isCutOperation = false;
+
+        // 记录上次同步时的 tag 快照，用于对比变更
+        private HashSet<string> _lastSyncedTagNames = new HashSet<string>();
+
+        // 累积的重命名映射（旧路径 -> 新路径），应用更改时一次性处理
+        private Dictionary<string, string> _pendingRenames = new Dictionary<string, string>();
 
         [MenuItem("Tools/Gameplay Tags Editor")]
         public static void ShowWindow()
@@ -41,8 +50,73 @@ namespace SkillEditor.Editor
             var window = GetWindow<GameplayTagsEditorWindow>();
             window.titleContent = new GUIContent("标签编辑器");
             window.minSize = new Vector2(400, 500);
-            window._asset = asset;
-            window.RefreshTree();
+        }
+
+        private void OnEnable()
+        {
+            LoadAsset();
+        }
+
+        private void LoadAsset()
+        {
+            _asset = AssetDatabase.LoadAssetAtPath<GameplayTagsAsset>(ASSET_PATH);
+            if (_asset != null)
+            {
+                _asset.Initialize();
+                _expandedNodes.Add(0);
+                SnapshotCurrentTags();
+            }
+        }
+
+        /// <summary>
+        /// 快照当前 tag 名称，用于判断是否有变更
+        /// </summary>
+        private void SnapshotCurrentTags()
+        {
+            _lastSyncedTagNames.Clear();
+            _pendingRenames.Clear();
+            if (_asset == null) return;
+            foreach (var tag in _asset.CachedTags)
+            {
+                _lastSyncedTagNames.Add(tag.Name);
+            }
+            _isDirty = false;
+        }
+
+        /// <summary>
+        /// 检查当前 tag 是否和上次同步时不同
+        /// </summary>
+        private void CheckDirty()
+        {
+            if (_asset == null) { _isDirty = false; return; }
+
+            // 有待处理的重命名就是脏的
+            if (_pendingRenames.Count > 0) { _isDirty = true; UpdateApplyButtonStyle(); return; }
+
+            var currentNames = new HashSet<string>();
+            foreach (var tag in _asset.CachedTags)
+                currentNames.Add(tag.Name);
+
+            _isDirty = !currentNames.SetEquals(_lastSyncedTagNames);
+            UpdateApplyButtonStyle();
+        }
+
+        private void UpdateApplyButtonStyle()
+        {
+            if (_applyButton == null) return;
+
+            if (_isDirty)
+            {
+                _applyButton.text = "● 应用更改";
+                _applyButton.style.backgroundColor = new Color(0.8f, 0.5f, 0.1f, 0.8f);
+                _applyButton.style.color = Color.white;
+            }
+            else
+            {
+                _applyButton.text = "应用更改";
+                _applyButton.style.backgroundColor = StyleKeyword.Null;
+                _applyButton.style.color = StyleKeyword.Null;
+            }
         }
 
         private void CreateGUI()
@@ -65,40 +139,18 @@ namespace SkillEditor.Editor
             };
             root.Add(titleLabel);
 
-            // 资源选择
-            var assetField = new ObjectField("标签资源")
+            // 应用更改按钮
+            _applyButton = new Button(() => ApplyChanges())
             {
-                objectType = typeof(GameplayTagsAsset),
-                value = _asset
-            };
-            assetField.RegisterValueChangedCallback(evt =>
-            {
-                _asset = evt.newValue as GameplayTagsAsset;
-                _selectedNodeId = -1;
-                _expandedNodes.Clear();
-                if (_asset != null)
+                text = "应用更改",
+                style =
                 {
-                    _expandedNodes.Add(0);
+                    height = 28,
+                    fontSize = 13,
+                    marginBottom = 8
                 }
-                RefreshTree();
-            });
-            root.Add(assetField);
-
-            // 创建新资源按钮
-            var createAssetButton = new Button(() => CreateNewAsset())
-            {
-                text = "创建新标签资源",
-                style = { marginTop = 4, marginBottom = 4 }
             };
-            root.Add(createAssetButton);
-
-            // 生成标签代码按钮
-            var generateCodeButton = new Button(() => GenerateTagCode())
-            {
-                text = "生成标签代码",
-                style = { marginBottom = 8 }
-            };
-            root.Add(generateCodeButton);
+            root.Add(_applyButton);
 
             // 分隔线
             root.Add(CreateSeparator());
@@ -208,11 +260,11 @@ namespace SkillEditor.Editor
             root.Add(bottomButtons);
 
             // 初始化
-            if (_asset != null)
-            {
-                _expandedNodes.Add(0);
-                RefreshTree();
-            }
+            if (_asset == null)
+                LoadAsset();
+
+            RefreshTree();
+            UpdateApplyButtonStyle();
         }
 
         private VisualElement CreateSeparator()
@@ -229,29 +281,63 @@ namespace SkillEditor.Editor
             };
         }
 
-        private void CreateNewAsset()
+        /// <summary>
+        /// 应用更改 - 一次性同步 GameplayTagLibrary + 技能资产
+        /// </summary>
+        private void ApplyChanges()
         {
-            var path = EditorUtility.SaveFilePanelInProject(
-                "创建标签资源",
-                "GameplayTagsAsset",
-                "asset",
-                "选择保存位置");
+            if (_asset == null)
+            {
+                EditorUtility.DisplayDialog("错误", $"未找到标签资源: {ASSET_PATH}", "确定");
+                return;
+            }
 
-            if (string.IsNullOrEmpty(path)) return;
+            int renameCount = 0;
+            int syncCount = 0;
 
-            var asset = CreateInstance<GameplayTagsAsset>();
-            asset.Initialize();
-            AssetDatabase.CreateAsset(asset, path);
+            // 1. 处理累积的重命名映射
+            if (_pendingRenames.Count > 0)
+            {
+                renameCount = GameplayTagRefactorTool.ApplyRename(_pendingRenames);
+            }
+
+            // 2. 收集当前有效的 tag 名称
+            var validTagNames = new HashSet<string>();
+            foreach (var tag in _asset.CachedTags)
+                validTagNames.Add(tag.Name);
+
+            // 3. 全量同步技能资产（移除无效 tag 引用）
+            syncCount = GameplayTagRefactorTool.SyncAll(validTagNames);
+
+            // 4. 重新生成 GameplayTagLibrary.cs
+            bool codeGenerated = GameplayTagCodeGenerator.AutoGenerate(_asset);
+
+            // 5. 更新快照，清空待处理队列
+            SnapshotCurrentTags();
+            UpdateApplyButtonStyle();
+
+            // 6. 显示结果
+            var message = "";
+            if (codeGenerated)
+                message += "GameplayTagLibrary 已更新\n";
+            if (renameCount > 0)
+                message += $"已重命名更新 {renameCount} 个技能资产\n";
+            if (syncCount > 0)
+                message += $"已清理 {syncCount} 个技能资产的无效引用";
+            else if (renameCount == 0)
+                message += "所有技能资产已是最新";
+
+            EditorUtility.DisplayDialog("应用更改", message, "确定");
+        }
+
+        /// <summary>
+        /// 标记 tag 有变更，并保存资源
+        /// </summary>
+        private void MarkDirtyAndSave()
+        {
+            EditorUtility.SetDirty(_asset);
             AssetDatabase.SaveAssets();
-
-            _asset = asset;
-            _expandedNodes.Clear();
-            _expandedNodes.Add(0);
-            RefreshTree();
-
-            var assetField = rootVisualElement.Q<ObjectField>();
-            if (assetField != null)
-                assetField.value = asset;
+            CheckDirty();
         }
 
         private void RefreshTree()
@@ -260,9 +346,9 @@ namespace SkillEditor.Editor
 
             if (_asset == null)
             {
-                _treeContainer.Add(new Label("请选择或创建一个标签资源")
+                _treeContainer.Add(new Label($"未找到标签资源: {ASSET_PATH}")
                 {
-                    style = { color = new Color(0.6f, 0.6f, 0.6f) }
+                    style = { color = new Color(0.8f, 0.3f, 0.3f) }
                 });
                 UpdateStatus();
                 return;
@@ -486,8 +572,7 @@ namespace SkillEditor.Editor
                 {
                     _asset.AddNode(newName, parentId);
                     _expandedNodes.Add(parentId);
-                    EditorUtility.SetDirty(_asset);
-                    AssetDatabase.SaveAssets();
+                    MarkDirtyAndSave();
                     RefreshTree();
                 }
             });
@@ -506,20 +591,27 @@ namespace SkillEditor.Editor
                 {
                     if (_asset.RenameNode(nodeId, newName, out var renamedPaths))
                     {
-                        EditorUtility.SetDirty(_asset);
-                        AssetDatabase.SaveAssets();
-
-                        // 方案一：自动更新所有技能资产中的 tag 引用
-                        if (renamedPaths != null && renamedPaths.Count > 0)
+                        // 累积重命名映射，等"应用更改"时统一处理
+                        if (renamedPaths != null)
                         {
-                            int count = GameplayTagRefactorTool.ApplyRename(renamedPaths);
-                            if (count > 0)
-                                Debug.Log($"[标签编辑器] 已自动更新 {count} 个技能资产的 Tag 引用");
+                            foreach (var kv in renamedPaths)
+                            {
+                                // 处理链式重命名：A->B，后来 B->C，最终应该是 A->C
+                                var originalKey = kv.Key;
+                                foreach (var existing in new Dictionary<string, string>(_pendingRenames))
+                                {
+                                    if (existing.Value == kv.Key)
+                                    {
+                                        originalKey = existing.Key;
+                                        _pendingRenames.Remove(existing.Key);
+                                        break;
+                                    }
+                                }
+                                _pendingRenames[originalKey] = kv.Value;
+                            }
                         }
 
-                        // 方案三：自动重新生成 GameplayTagLibrary
-                        GameplayTagCodeGenerator.AutoGenerate(_asset);
-
+                        MarkDirtyAndSave();
                         RefreshTree();
                     }
                 }
@@ -534,65 +626,14 @@ namespace SkillEditor.Editor
 
             var fullPath = _asset.GetFullTagPath(nodeId);
             var hasChildren = node.childrenIds.Count > 0;
-
-            // 先收集将要删除的 tag 路径（删除前）
-            var affectedIds = new System.Collections.Generic.List<int>();
-            CollectDescendantIdsForDelete(nodeId, affectedIds);
-            var removedPaths = new System.Collections.Generic.List<string>();
-            foreach (var id in affectedIds)
-            {
-                var path = _asset.GetFullTagPath(id);
-                if (!string.IsNullOrEmpty(path))
-                    removedPaths.Add(path);
-            }
-
-            // 扫描引用
-            var references = GameplayTagRefactorTool.FindReferences(removedPaths);
-
-            // 构建确认消息
             var message = hasChildren
                 ? $"确定要删除标签 \"{fullPath}\" 及其所有子标签吗？"
                 : $"确定要删除标签 \"{fullPath}\" 吗？";
 
-            if (references.Count > 0)
-            {
-                // 按资产分组显示引用
-                var assetNames = new System.Collections.Generic.HashSet<string>();
-                foreach (var r in references)
-                    assetNames.Add(r.assetName);
-
-                message += $"\n\n⚠ 以下 {assetNames.Count} 个技能资产仍在引用此标签:\n";
-                int shown = 0;
-                foreach (var name in assetNames)
-                {
-                    if (shown >= 10)
-                    {
-                        message += $"  ...等共 {assetNames.Count} 个\n";
-                        break;
-                    }
-                    message += $"  • {name}\n";
-                    shown++;
-                }
-                message += "\n删除后将自动从这些资产中移除对应的 Tag 引用。";
-            }
-
             if (EditorUtility.DisplayDialog("删除标签", message, "删除", "取消"))
             {
-                // 先从技能资产中移除引用
-                if (references.Count > 0)
-                {
-                    int count = GameplayTagRefactorTool.ApplyRemove(removedPaths);
-                    if (count > 0)
-                        Debug.Log($"[标签编辑器] 已自动清理 {count} 个技能资产的 Tag 引用");
-                }
-
-                // 再删除 tag 定义
                 _asset.RemoveNode(nodeId);
-                EditorUtility.SetDirty(_asset);
-                AssetDatabase.SaveAssets();
-
-                // 自动重新生成 GameplayTagLibrary
-                GameplayTagCodeGenerator.AutoGenerate(_asset);
+                MarkDirtyAndSave();
 
                 if (_selectedNodeId == nodeId)
                     _selectedNodeId = -1;
@@ -601,18 +642,6 @@ namespace SkillEditor.Editor
 
                 RefreshTree();
             }
-        }
-
-        /// <summary>
-        /// 收集节点及其所有子孙ID（用于删除前的引用扫描）
-        /// </summary>
-        private void CollectDescendantIdsForDelete(int nodeId, System.Collections.Generic.List<int> result)
-        {
-            result.Add(nodeId);
-            var node = _asset.GetNodeById(nodeId);
-            if (node == null) return;
-            foreach (var childId in node.childrenIds)
-                CollectDescendantIdsForDelete(childId, result);
         }
 
         private void CopyTag(int nodeId)
@@ -649,12 +678,40 @@ namespace SkillEditor.Editor
 
             if (_isCutOperation)
             {
-                // 剪切 = 移动
+                // 剪切 = 移动，需要记录路径变更（移动会改变 tag 的完整路径）
+                // 先收集移动前的旧路径
+                var affectedIds = new List<int>();
+                CollectDescendantIdsForPaste(_clipboardNodeId, affectedIds);
+                var oldPaths = new Dictionary<int, string>();
+                foreach (var id in affectedIds)
+                    oldPaths[id] = _asset.GetFullTagPath(id);
+
                 if (_asset.MoveNode(_clipboardNodeId, targetParentId))
                 {
+                    // 收集移动后的新路径，记录重命名映射
+                    foreach (var id in affectedIds)
+                    {
+                        var oldPath = oldPaths[id];
+                        var newPath = _asset.GetFullTagPath(id);
+                        if (oldPath != newPath && !string.IsNullOrEmpty(oldPath))
+                        {
+                            // 处理链式：如果之前已经有 X->oldPath 的映射，更新为 X->newPath
+                            var originalKey = oldPath;
+                            foreach (var existing in new Dictionary<string, string>(_pendingRenames))
+                            {
+                                if (existing.Value == oldPath)
+                                {
+                                    originalKey = existing.Key;
+                                    _pendingRenames.Remove(existing.Key);
+                                    break;
+                                }
+                            }
+                            _pendingRenames[originalKey] = newPath;
+                        }
+                    }
+
                     _expandedNodes.Add(targetParentId);
-                    EditorUtility.SetDirty(_asset);
-                    AssetDatabase.SaveAssets();
+                    MarkDirtyAndSave();
                     _clipboardNodeId = -1;
                     RefreshTree();
                     Debug.Log("标签已移动");
@@ -665,8 +722,7 @@ namespace SkillEditor.Editor
                 // 复制 = 深度复制节点及其子节点
                 CopyNodeRecursive(_clipboardNodeId, targetParentId);
                 _expandedNodes.Add(targetParentId);
-                EditorUtility.SetDirty(_asset);
-                AssetDatabase.SaveAssets();
+                MarkDirtyAndSave();
                 RefreshTree();
                 Debug.Log("标签已粘贴");
             }
@@ -699,6 +755,18 @@ namespace SkillEditor.Editor
             return false;
         }
 
+        /// <summary>
+        /// 收集节点及其所有子孙ID
+        /// </summary>
+        private void CollectDescendantIdsForPaste(int nodeId, List<int> result)
+        {
+            result.Add(nodeId);
+            var node = _asset.GetNodeById(nodeId);
+            if (node == null) return;
+            foreach (var childId in node.childrenIds)
+                CollectDescendantIdsForPaste(childId, result);
+        }
+
         private void CopyTagName(int nodeId)
         {
             var fullPath = _asset.GetFullTagPath(nodeId);
@@ -710,17 +778,6 @@ namespace SkillEditor.Editor
         }
 
         #endregion
-
-        private void GenerateTagCode()
-        {
-            if (_asset == null)
-            {
-                EditorUtility.DisplayDialog("错误", "请先选择或创建一个标签资源", "确定");
-                return;
-            }
-
-            GameplayTagCodeGenerator.GenerateTagCodeFromEditor(_asset);
-        }
 
         private VisualElement CreateSearchResultItem(GameplayTag tag)
         {
@@ -783,7 +840,8 @@ namespace SkillEditor.Editor
                 selectedInfo = $" | 选中: {fullPath}";
             }
 
-            _statusLabel.text = $"共 {tagCount} 个标签{selectedInfo}";
+            var dirtyInfo = _isDirty ? " | 有未应用的更改" : "";
+            _statusLabel.text = $"共 {tagCount} 个标签{selectedInfo}{dirtyInfo}";
         }
     }
 

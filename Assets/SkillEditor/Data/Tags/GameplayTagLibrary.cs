@@ -65,6 +65,11 @@ namespace SkillEditor.Data
         public static GameplayTag CD_旋风斩 { get; } = new GameplayTag("CD.旋风斩");
 
         /// <summary>
+        /// CD.横扫
+        /// </summary>
+        public static GameplayTag CD_横扫 { get; } = new GameplayTag("CD.横扫");
+
+        /// <summary>
         /// CD.流血
         /// </summary>
         public static GameplayTag CD_流血 { get; } = new GameplayTag("CD.流血");
@@ -123,6 +128,7 @@ namespace SkillEditor.Data
             ["CD.回血"] = CD_回血,
             ["CD.急速"] = CD_急速,
             ["CD.旋风斩"] = CD_旋风斩,
+            ["CD.横扫"] = CD_横扫,
             ["CD.流血"] = CD_流血,
             ["CD.火球术"] = CD_火球术,
             ["CD.神罗天正"] = CD_神罗天正,

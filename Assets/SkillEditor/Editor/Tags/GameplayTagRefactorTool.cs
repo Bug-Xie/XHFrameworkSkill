@@ -163,7 +163,120 @@ namespace SkillEditor.Editor
             return modifiedCount;
         }
 
+        /// <summary>
+        /// 全量同步 - 扫描所有技能资产，移除不存在的 tag 引用
+        /// 用于"应用更改"按钮，一次性修复所有不一致
+        /// </summary>
+        /// <param name="validTagNames">当前有效的所有 tag 名称集合</param>
+        /// <returns>被修改的资产数量</returns>
+        public static int SyncAll(HashSet<string> validTagNames)
+        {
+            if (validTagNames == null) return 0;
+
+            var assetPaths = FindSkillAssets();
+            int modifiedCount = 0;
+            int totalAssets = assetPaths.Length;
+
+            try
+            {
+                AssetDatabase.StartAssetEditing();
+
+                for (int i = 0; i < totalAssets; i++)
+                {
+                    var assetPath = assetPaths[i];
+
+                    if (totalAssets > 50)
+                    {
+                        EditorUtility.DisplayProgressBar(
+                            "同步 Tag 引用",
+                            $"处理: {Path.GetFileNameWithoutExtension(assetPath)} ({i + 1}/{totalAssets})",
+                            (float)i / totalAssets);
+                    }
+
+                    if (SyncTagsInAsset(assetPath, validTagNames))
+                        modifiedCount++;
+                }
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+                EditorUtility.ClearProgressBar();
+            }
+
+            if (modifiedCount > 0)
+            {
+                AssetDatabase.SaveAssets();
+            }
+
+            return modifiedCount;
+        }
+
         #region 内部实现
+
+        /// <summary>
+        /// 同步单个资产 - 移除不在有效集合中的 tag
+        /// </summary>
+        private static bool SyncTagsInAsset(string assetPath, HashSet<string> validTagNames)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<SkillGraphData>(assetPath);
+            if (asset == null) return false;
+
+            bool modified = false;
+
+            foreach (var node in asset.nodes)
+            {
+                if (node == null) continue;
+                if (SyncTagsInNode(node, validTagNames))
+                    modified = true;
+            }
+
+            if (modified)
+                EditorUtility.SetDirty(asset);
+
+            return modified;
+        }
+
+        /// <summary>
+        /// 同步节点中的 tag - 移除不在有效集合中的 tag
+        /// </summary>
+        private static bool SyncTagsInNode(NodeData node, HashSet<string> validTagNames)
+        {
+            bool modified = false;
+            var type = node.GetType();
+            var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+            foreach (var field in fields)
+            {
+                if (field.FieldType != typeof(GameplayTagSet)) continue;
+
+                var tagSet = (GameplayTagSet)field.GetValue(node);
+                if (tagSet.IsEmpty) continue;
+
+                var newTags = new List<GameplayTag>();
+                bool setModified = false;
+
+                foreach (var tag in tagSet.Tags)
+                {
+                    if (tag.IsValid && !validTagNames.Contains(tag.Name))
+                    {
+                        setModified = true; // 跳过无效 tag
+                        Debug.LogWarning($"[TagSync] 移除无效 Tag 引用: {tag.Name} (在 {type.Name}.{field.Name})");
+                    }
+                    else
+                    {
+                        newTags.Add(tag);
+                    }
+                }
+
+                if (setModified)
+                {
+                    field.SetValue(node, new GameplayTagSet(newTags));
+                    modified = true;
+                }
+            }
+
+            return modified;
+        }
 
         /// <summary>
         /// 查找所有 SkillGraphData 资产
