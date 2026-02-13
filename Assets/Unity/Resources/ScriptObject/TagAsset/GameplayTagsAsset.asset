@@ -16,7 +16,7 @@ MonoBehaviour:
   - name: Root
     id: 0
     parentId: -1
-    childrenIds: 300000004400000049000000
+    childrenIds: 30000000440000004900000055000000
   - name: unitType
     id: 48
     parentId: 0
@@ -92,6 +92,14 @@ MonoBehaviour:
   - name: "\u6A2A\u626B"
     id: 82
     parentId: 68
+    childrenIds: 
+  - name: Skill
+    id: 85
+    parentId: 0
+    childrenIds: 56000000
+  - name: Running
+    id: 86
+    parentId: 85
     childrenIds: 
   _cachedTags:
   - _name: Buff
@@ -190,6 +198,17 @@ MonoBehaviour:
     _ancestorHashCodes: aba22dbc
     _ancestorNames:
     - CD
+  - _name: Skill
+    _hashCode: 1312877309
+    _shortName: Skill
+    _ancestorHashCodes: 
+    _ancestorNames: []
+  - _name: Skill.Running
+    _hashCode: -51601538
+    _shortName: Running
+    _ancestorHashCodes: fdea404e
+    _ancestorNames:
+    - Skill
   - _name: unitType
     _hashCode: 1600484460
     _shortName: unitType
@@ -207,4 +226,4 @@ MonoBehaviour:
     _ancestorHashCodes: 6c74655f
     _ancestorNames:
     - unitType
-  _nextId: 85
+  _nextId: 87

@@ -17,9 +17,9 @@ MonoBehaviour:
   - rid: 4684207789798588423
   - rid: 4684207772497084429
   - rid: 4684207772497084420
-  - rid: 4684207772497084416
   - rid: 4684207772497084418
   - rid: 4684207789798588424
+  - rid: 4684207772497084416
   connections:
   - outputNodeGuid: 356907e0-1488-4128-bfcc-7ff73cfc3330
     outputPortName: "\u51B7\u5374"
@@ -55,7 +55,7 @@ MonoBehaviour:
         nodeType: 0
         position: {x: -902.4, y: -1844}
         targetType: 1
-        skillId: 1008
+        skillId: 1007
         assetTags:
           _tags: []
         cancelAbilitiesWithTags:
@@ -63,7 +63,13 @@ MonoBehaviour:
         blockAbilitiesWithTags:
           _tags: []
         activationOwnedTags:
-          _tags: []
+          _tags:
+          - _name: Skill.Running
+            _hashCode: -51601538
+            _shortName: Running
+            _ancestorHashCodes: fdea404e
+            _ancestorNames:
+            - Skill
         activationRequiredTags:
           _tags: []
         activationBlockedTags:
@@ -74,6 +80,12 @@ MonoBehaviour:
             _ancestorHashCodes: aba22dbc
             _ancestorNames:
             - CD
+          - _name: Skill.Running
+            _hashCode: -51601538
+            _shortName: Running
+            _ancestorHashCodes: fdea404e
+            _ancestorNames:
+            - Skill
         ongoingBlockedTags:
           _tags: []
         eventOutputPorts: []

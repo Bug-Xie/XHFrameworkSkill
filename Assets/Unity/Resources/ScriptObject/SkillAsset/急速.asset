@@ -17,8 +17,8 @@ MonoBehaviour:
   - rid: 4684207772497084431
   - rid: 4684207772497084417
   - rid: 4684207772497084420
-  - rid: 4684207772497084416
   - rid: 4684207789798588433
+  - rid: 4684207772497084416
   connections:
   - outputNodeGuid: 356907e0-1488-4128-bfcc-7ff73cfc3330
     outputPortName: "\u52A8\u753B"
@@ -50,7 +50,7 @@ MonoBehaviour:
         nodeType: 0
         position: {x: -878.4, y: -1853.6}
         targetType: 1
-        skillId: 0
+        skillId: 1009
         assetTags:
           _tags: []
         cancelAbilitiesWithTags:
@@ -58,7 +58,13 @@ MonoBehaviour:
         blockAbilitiesWithTags:
           _tags: []
         activationOwnedTags:
-          _tags: []
+          _tags:
+          - _name: Skill.Running
+            _hashCode: -51601538
+            _shortName: Running
+            _ancestorHashCodes: fdea404e
+            _ancestorNames:
+            - Skill
         activationRequiredTags:
           _tags: []
         activationBlockedTags:
@@ -69,6 +75,12 @@ MonoBehaviour:
             _ancestorHashCodes: aba22dbc
             _ancestorNames:
             - CD
+          - _name: Skill.Running
+            _hashCode: -51601538
+            _shortName: Running
+            _ancestorHashCodes: fdea404e
+            _ancestorNames:
+            - Skill
         ongoingBlockedTags:
           _tags: []
         eventOutputPorts: []
@@ -79,8 +91,7 @@ MonoBehaviour:
         nodeType: 20
         position: {x: -502.4, y: -2384}
         targetType: 1
-        skeletonDataAsset: {fileID: 11400000, guid: 4fa037b3a2d54ba46a5bbed3faf26323,
-          type: 2}
+        skeletonDataAsset: {fileID: 0}
         animationName: Skill_attack_1009
         animationDuration: 25
         isAnimationLooping: 0
