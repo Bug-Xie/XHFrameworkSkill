@@ -2,7 +2,7 @@
 
 ## 🎯 <span style="color: red; font-size: 22px; font-weight: bold;">QQ交流群：621790749</span>  
 
-## 🎯<span style="color: red; font-size: 22px; font-weight: bold;">视频地址【XHFrameworkSkill 一Unity 可视化技能编辑器与技能框架】 https://www.bilibili.com/video/BV1aAZEBjEcQ/?share_source=copy_web&vd_source=c7d3d63972de09d5db2e623c82034012</span> 
+## 🎯<span style="color: red; font-size: 22px; font-weight: bold;">B站视频地址【XHFrameworkSkill 一Unity 可视化技能编辑器与技能框架】 https://www.bilibili.com/video/BV1aAZEBjEcQ/?share_source=copy_web&vd_source=c7d3d63972de09d5db2e623c82034012</span> 
 
 ## 🎯 <span style="color: red; font-size: 26px; font-weight: bold;">Unity版本：2022.3.62f2c1  示例场景在SampleScene里面  分辨率1366*768 wasd控制主角
 
